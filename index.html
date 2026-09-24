@@ -1,0 +1,1612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bouncing Ball Lab — Kinematics & Trajectory Simulator</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:
+      radial-gradient(1200px 800px at 15% -10%, #12203a 0%, transparent 60%),
+      radial-gradient(900px 700px at 100% 110%, #1a1130 0%, transparent 55%),
+      #05070d;
+    color:#e6edf7;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  #app{display:flex;flex-direction:column;height:100vh;height:100dvh;}
+
+  /* ---------- Top bar ---------- */
+  #topbar{
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:12px 20px;
+    border-bottom:1px solid rgba(255,255,255,.07);
+    background:rgba(8,12,22,.6);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    flex:0 0 auto;
+    z-index:5;
+  }
+  .brand{display:flex;align-items:center;gap:13px;min-width:0}
+  .logo{
+    width:34px;height:34px;border-radius:11px;flex:0 0 auto;
+    background:linear-gradient(135deg,#38bdf8,#818cf8 55%,#f472b6);
+    box-shadow:0 0 22px rgba(56,189,248,.55), inset 0 0 12px rgba(255,255,255,.35);
+    position:relative;
+  }
+  .logo::after{
+    content:"";position:absolute;inset:9px;border-radius:50%;
+    background:rgba(255,255,255,.85);filter:blur(.3px);
+    box-shadow:0 0 10px #fff;
+  }
+  h1{font-size:15px;margin:0;letter-spacing:.2px;font-weight:650;white-space:nowrap}
+  .brand p{margin:2px 0 0;font-size:11px;color:#7f8fa6;letter-spacing:.35px;white-space:nowrap}
+  .status{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+  .badge{
+    font-size:11px;padding:5px 11px;border-radius:999px;letter-spacing:.4px;
+    background:linear-gradient(135deg,rgba(56,189,248,.22),rgba(129,140,248,.18));
+    border:1px solid rgba(120,190,255,.35);
+    color:#bfe6ff;white-space:nowrap;
+    font-variant-numeric:tabular-nums;
+  }
+  .badge.ghost{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.10);color:#9fb0c6}
+
+  /* ---------- Layout ---------- */
+  main{
+    flex:1 1 auto;min-height:0;
+    display:flex;gap:14px;padding:14px;
+  }
+  #stageWrap{
+    position:relative;flex:1 1 auto;min-width:0;min-height:0;
+    border-radius:16px;overflow:hidden;
+    border:1px solid rgba(255,255,255,.09);
+    box-shadow:0 24px 60px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.02);
+    background:#000;
+  }
+  canvas{display:block;width:100%;height:100%;cursor:crosshair;touch-action:none}
+  .hint{
+    position:absolute;left:50%;bottom:12px;transform:translateX(-50%);
+    font-size:11px;color:rgba(200,220,240,.62);
+    background:rgba(6,10,18,.55);
+    border:1px solid rgba(255,255,255,.08);
+    padding:6px 14px;border-radius:999px;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    pointer-events:none;white-space:nowrap;letter-spacing:.25px;
+    transition:opacity .5s;max-width:94%;overflow:hidden;text-overflow:ellipsis;
+  }
+
+  /* ---------- Panel ---------- */
+  #panel{
+    flex:0 0 356px;width:356px;min-height:0;overflow-y:auto;overflow-x:hidden;
+    display:flex;flex-direction:column;gap:12px;padding-right:4px;
+    scrollbar-width:thin;scrollbar-color:rgba(120,160,200,.3) transparent;
+  }
+  #panel::-webkit-scrollbar{width:8px}
+  #panel::-webkit-scrollbar-thumb{background:rgba(120,160,200,.25);border-radius:8px}
+  #panel::-webkit-scrollbar-track{background:transparent}
+
+  .card{
+    background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.018));
+    border:1px solid rgba(255,255,255,.085);
+    border-radius:14px;padding:13px 14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.28);
+  }
+  .card h2{
+    margin:0 0 11px;font-size:10.5px;font-weight:700;letter-spacing:1.5px;
+    text-transform:uppercase;color:#7d90a8;display:flex;align-items:center;gap:8px;
+  }
+  .card h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255,.12),transparent)}
+
+  /* Environment grid */
+  .envGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+  .envBtn{
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+    padding:9px 4px 8px;border-radius:11px;cursor:pointer;
+    background:rgba(255,255,255,.035);
+    border:1px solid rgba(255,255,255,.08);
+    color:#b9c7d8;font-size:10.5px;font-weight:600;letter-spacing:.3px;
+    transition:.18s ease;user-select:none;
+  }
+  .envBtn:hover{background:rgba(255,255,255,.085);transform:translateY(-1px);color:#e6f2ff}
+  .envBtn.active{
+    background:linear-gradient(180deg,rgba(56,189,248,.22),rgba(56,189,248,.07));
+    border-color:rgba(86,196,255,.65);
+    color:#eaf7ff;
+    box-shadow:0 0 18px rgba(56,189,248,.28), inset 0 0 12px rgba(56,189,248,.10);
+  }
+  .dot{width:15px;height:15px;border-radius:50%;box-shadow:inset 0 -3px 6px rgba(0,0,0,.5),0 0 9px currentColor}
+
+  /* Sliders */
+  .ctrl{margin-bottom:13px}
+  .ctrl:last-child{margin-bottom:2px}
+  .ctrl .row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+  .ctrl label{font-size:11.5px;color:#9db0c6;letter-spacing:.2px}
+  .ctrl .val{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:11.5px;color:#6fd8ff;font-variant-numeric:tabular-nums;
+  }
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:4px;
+    background:linear-gradient(90deg,rgba(56,189,248,.85),rgba(129,140,248,.55));
+    outline:none;cursor:pointer;display:block;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+    background:#eaf7ff;border:2px solid #38bdf8;cursor:pointer;
+    box-shadow:0 0 12px rgba(56,189,248,.8);transition:transform .12s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.15)}
+  input[type=range]::-moz-range-thumb{
+    width:13px;height:13px;border-radius:50%;background:#eaf7ff;border:2px solid #38bdf8;
+    box-shadow:0 0 12px rgba(56,189,248,.8);cursor:pointer;
+  }
+
+  /* Toggles */
+  .toggles{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  .tog{
+    display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;
+    background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
+    font-size:11px;color:#93a6bc;cursor:pointer;user-select:none;transition:.15s;
+  }
+  .tog:hover{background:rgba(255,255,255,.07)}
+  .tog input{display:none}
+  .tog .box{
+    width:14px;height:14px;border-radius:4px;flex:0 0 auto;
+    border:1.5px solid rgba(255,255,255,.25);position:relative;transition:.15s;
+  }
+  .tog input:checked + .box{
+    background:linear-gradient(135deg,#38bdf8,#818cf8);border-color:#38bdf8;
+    box-shadow:0 0 10px rgba(56,189,248,.6);
+  }
+  .tog input:checked + .box::after{
+    content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;
+    border:solid #04121e;border-width:0 2px 2px 0;transform:rotate(45deg);
+  }
+  .tog input:checked ~ span{color:#dceaf8}
+
+  /* Buttons */
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  button.act{
+    padding:10px 8px;border-radius:10px;cursor:pointer;
+    background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.1);
+    color:#cfe0f2;font-size:11.5px;font-weight:600;letter-spacing:.35px;
+    transition:.16s;font-family:inherit;
+  }
+  button.act:hover{background:rgba(56,189,248,.16);border-color:rgba(86,196,255,.55);color:#fff;transform:translateY(-1px)}
+  button.act:active{transform:translateY(0)}
+  button.act.primary{
+    background:linear-gradient(135deg,rgba(56,189,248,.28),rgba(129,140,248,.22));
+    border-color:rgba(86,196,255,.5);color:#eaf7ff;
+  }
+
+  /* Math readouts */
+  .mrow{
+    display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+    padding:5px 0;border-bottom:1px dashed rgba(255,255,255,.055);font-size:11.5px;
+  }
+  .mrow:last-child{border-bottom:none}
+  .mrow span{color:#8b9db4;white-space:nowrap}
+  .mrow b{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-weight:500;color:#7fe3ff;font-variant-numeric:tabular-nums;
+    text-align:right;font-size:11px;
+  }
+  .mrow b.warm{color:#ffc27a}
+  .mrow b.good{color:#8ef0a8}
+  .eq{
+    margin-top:11px;padding:11px 12px;border-radius:10px;
+    background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.07);
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:10.8px;color:#a7f3d0;line-height:1.75;word-break:break-word;
+    overflow-wrap:anywhere;
+  }
+  .eq .lbl{color:#7d90a8;font-size:9.5px;letter-spacing:1px;display:block;margin-bottom:5px;text-transform:uppercase}
+
+  /* Energy bars */
+  .bars{margin-top:11px;display:flex;flex-direction:column;gap:7px}
+  .barRow{display:flex;align-items:center;gap:8px;font-size:10px;color:#8b9db4}
+  .barRow .nm{width:26px;flex:0 0 auto;letter-spacing:.5px}
+  .barTrack{flex:1;height:7px;border-radius:4px;background:rgba(255,255,255,.055);overflow:hidden}
+  .barFill{height:100%;width:0%;border-radius:4px;transition:width .1s linear}
+  #barKE{background:linear-gradient(90deg,#22d3ee,#38bdf8)}
+  #barPE{background:linear-gradient(90deg,#f472b6,#a78bfa)}
+  .barRow .num{
+    width:62px;text-align:right;flex:0 0 auto;
+    font-family:ui-monospace,Menlo,Consolas,monospace;color:#9fe8ff;font-variant-numeric:tabular-nums;
+  }
+
+  @media (max-width: 980px){
+    main{flex-direction:column;padding:10px;gap:10px}
+    #stageWrap{flex:1 1 auto;min-height:44vh}
+    #panel{flex:0 0 auto;width:100%;max-height:42vh;padding-right:0}
+    .envGrid{grid-template-columns:repeat(5,1fr)}
+    .brand p{display:none}
+    h1{font-size:13.5px}
+  }
+  @media (max-width: 560px){
+    .envGrid{grid-template-columns:repeat(3,1fr)}
+    .status .badge:nth-child(3){display:none}
+    .hint{font-size:9.5px;padding:5px 10px}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <h1>Bouncing Ball Lab</h1>
+        <p>Kinematics · Trajectory Tracking · Variable Gravity</p>
+      </div>
+    </div>
+    <div class="status">
+      <span class="badge" id="envBadge">Earth</span>
+      <span class="badge ghost" id="gBadge">g = 9.81 m/s²</span>
+      <span class="badge ghost" id="stateBadge">Running</span>
+    </div>
+  </header>
+
+  <main>
+    <section id="stageWrap">
+      <canvas id="stage"></canvas>
+      <div class="hint" id="hint">Drag to slingshot · Click to place ball · Space = pause · R = reset · C = clear trails</div>
+    </section>
+
+    <aside id="panel">
+
+      <div class="card">
+        <h2>Environment</h2>
+        <div class="envGrid" id="envGrid"></div>
+      </div>
+
+      <div class="card">
+        <h2>Physics Parameters</h2>
+
+        <div class="ctrl">
+          <div class="row"><label>Gravity</label><span class="val" id="valGravity">9.81 m/s²</span></div>
+          <input type="range" id="rngGravity" min="0" max="1" step="0.001" value="0.573">
+        </div>
+
+        <div class="ctrl">
+          <div class="row"><label>Restitution (bounciness)</label><span class="val" id="valRest">0.82</span></div>
+          <input type="range" id="rngRest" min="0" max="1" step="0.01" value="0.82">
+        </div>
+
+        <div class="ctrl">
+          <div class="row"><label>Air drag</label><span class="val" id="valDrag">100 %</span></div>
+          <input type="range" id="rngDrag" min="0" max="200" step="1" value="100">
+        </div>
+
+        <div class="ctrl">
+          <div class="row"><label>Ball radius</label><span class="val" id="valRadius">0.35 m</span></div>
+          <input type="range" id="rngRadius" min="0.1" max="1.2" step="0.01" value="0.35">
+        </div>
+
+        <div class="ctrl">
+          <div class="row"><label>Time scale</label><span class="val" id="valTime">1.00 ×</span></div>
+          <input type="range" id="rngTime" min="0.05" max="3" step="0.05" value="1">
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Visualisation</h2>
+        <div class="toggles">
+          <label class="tog"><input type="checkbox" id="chkTrail" checked><span class="box"></span><span>Motion trail</span></label>
+          <label class="tog"><input type="checkbox" id="chkArcs" checked><span class="box"></span><span>Parabola arcs</span></label>
+          <label class="tog"><input type="checkbox" id="chkPred" checked><span class="box"></span><span>Prediction</span></label>
+          <label class="tog"><input type="checkbox" id="chkVectors" checked><span class="box"></span><span>Vectors</span></label>
+          <label class="tog"><input type="checkbox" id="chkGrid" checked><span class="box"></span><span>Metre grid</span></label>
+          <label class="tog"><input type="checkbox" id="chkApex" checked><span class="box"></span><span>Apex markers</span></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Actions</h2>
+        <div class="btns">
+          <button class="act primary" id="btnPause">⏸ Pause</button>
+          <button class="act" id="btnReset">↺ Reset ball</button>
+          <button class="act" id="btnRandom">🎲 Random launch</button>
+          <button class="act" id="btnClear">🧹 Clear trails</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Live Mathematics</h2>
+        <div class="mrow"><span>Position (x, y)</span><b id="mPos">—</b></div>
+        <div class="mrow"><span>Velocity (vₓ, v_y)</span><b id="mVel">—</b></div>
+        <div class="mrow"><span>Speed |v|</span><b id="mSpeed">—</b></div>
+        <div class="mrow"><span>Launch angle θ</span><b id="mAngle">—</b></div>
+        <div class="mrow"><span>Flight time t</span><b id="mTime">—</b></div>
+        <div class="mrow"><span>Apex height (theory)</span><b class="warm" id="mApexT">—</b></div>
+        <div class="mrow"><span>Apex height (measured)</span><b class="good" id="mApexM">—</b></div>
+        <div class="mrow"><span>Time to apex</span><b id="mTApex">—</b></div>
+        <div class="mrow"><span>Predicted range</span><b id="mRange">—</b></div>
+        <div class="mrow"><span>Drag deviation Δy</span><b class="warm" id="mDev">—</b></div>
+        <div class="mrow"><span>Bounces</span><b id="mBounces">0</b></div>
+
+        <div class="bars">
+          <div class="barRow"><span class="nm">KE</span><div class="barTrack"><div class="barFill" id="barKE"></div></div><span class="num" id="numKE">0 J</span></div>
+          <div class="barRow"><span class="nm">PE</span><div class="barTrack"><div class="barFill" id="barPE"></div></div><span class="num" id="numPE">0 J</span></div>
+        </div>
+
+        <div class="eq">
+          <span class="lbl">Trajectory equation · current flight</span>
+          <div id="mEq">awaiting launch…</div>
+        </div>
+      </div>
+
+    </aside>
+  </main>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+/* =========================================================================
+   CONSTANTS & HELPERS
+   ========================================================================= */
+const TAU = Math.PI * 2;
+const VIEW_H        = 12.2;   // metres visible vertically on the canvas
+const GROUND_DEPTH  = 0.9;    // metres of ground drawn below the floor line
+const FIXED_DT      = 1 / 480;
+const MAX_SUBSTEPS  = 500;
+const BOUNCE_MIN    = 0.42;   // m/s — below this a floor hit is treated as rest
+const AIM_POWER     = 4.0;
+const MAX_LAUNCH    = 45;     // m/s
+const BALL_MASS     = 1.0;    // kg
+
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const lerp  = (a, b, t) => a + (b - a) * t;
+
+function hexA(hex, a) {
+  let h = hex.replace("#", "");
+  if (h.length === 3) h = h.split("").map(c => c + c).join("");
+  const n = parseInt(h, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+/* =========================================================================
+   ENVIRONMENT PRESETS
+   Each preset drives both the physics AND the procedural backdrop.
+   ========================================================================= */
+const ENVS = [
+  {
+    id:"earth", name:"Earth", g:9.81, e:0.82, density:1.0, timeScale:1,
+    sky:["#04122e", "#0b3a6b", "#2f7fc0", "#8ec9ea"],
+    ground:["#3f9445", "#173f1c"], groundEdge:"#8ff09a",
+    stars:0, cloudCount:9, cloudColor:"255,255,255", cloudAlpha:0.5,
+    sun:{ x:0.80, y:0.13, r:0.045, c:"#fff8d0", glow:"rgba(255,242,190,0.55)" },
+    bands:null, accent:"#5ad1ff"
+  },
+  {
+    id:"moon", name:"Moon", g:1.62, e:0.90, density:0.0, timeScale:1,
+    sky:["#000000", "#01030a", "#050810"],
+    ground:["#b6b6b6", "#4e4e4e"], groundEdge:"#efefef",
+    stars:300, cloudCount:0, cloudColor:"255,255,255", cloudAlpha:0,
+    sun:{ x:0.86, y:0.11, r:0.030, c:"#ffffff", glow:"rgba(210,225,255,0.34)" },
+    bands:null, accent:"#cfd8dc", craters:true
+  },
+  {
+    id:"mars", name:"Mars", g:3.71, e:0.72, density:0.02, timeScale:1,
+    sky:["#2a1004", "#7a3b16", "#c97b3c", "#e6b47f"],
+    ground:["#b4562a", "#5c2712"], groundEdge:"#ffab6b",
+    stars:0, cloudCount:5, cloudColor:"255,205,160", cloudAlpha:0.22,
+    sun:{ x:0.24, y:0.16, r:0.022, c:"#ffe0b0", glow:"rgba(255,190,120,0.4)" },
+    bands:null, accent:"#ff9a5c"
+  },
+  {
+    id:"venus", name:"Venus", g:8.87, e:0.60, density:5.0, timeScale:1,
+    sky:["#5a3d0c", "#a9761b", "#d9a83a", "#f5d98a"],
+    ground:["#a07a24", "#4a3410"], groundEdge:"#ffe08a",
+    stars:0, cloudCount:16, cloudColor:"255,235,170", cloudAlpha:0.30,
+    sun:{ x:0.5, y:0.06, r:0.05, c:"#fff3c4", glow:"rgba(255,225,150,0.5)" },
+    bands:["#c99a2e", "#e0b451", "#a87d20", "#d8ab3f"], accent:"#ffd76a"
+  },
+  {
+    id:"mercury", name:"Mercury", g:3.70, e:0.70, density:0.0, timeScale:1,
+    sky:["#000000", "#070707", "#131313"],
+    ground:["#7c7c7c", "#333333"], groundEdge:"#b5b5b5",
+    stars:260, cloudCount:0, cloudColor:"255,255,255", cloudAlpha:0,
+    sun:{ x:0.72, y:0.14, r:0.062, c:"#ffffff", glow:"rgba(255,240,200,0.42)" },
+    bands:null, accent:"#e0e0e0", craters:true
+  },
+  {
+    id:"jupiter", name:"Jupiter", g:24.79, e:0.66, density:2.5, timeScale:0.55,
+    sky:["#2b1708", "#7a4a22", "#c98a4a", "#f0d3a6"],
+    ground:["#c08a52", "#5c3a1c"], groundEdge:"#ffd9a0",
+    stars:0, cloudCount:7, cloudColor:"255,225,190", cloudAlpha:0.28,
+    sun:{ x:0.16, y:0.10, r:0.02, c:"#fff0d0", glow:"rgba(255,220,170,0.3)" },
+    bands:["#8a5524", "#d9a86a", "#b07b3c", "#e8c894", "#a06630"], accent:"#ffb877"
+  },
+  {
+    id:"sun", name:"Sun", g:274.0, e:0.45, density:0.3, timeScale:0.18,
+    sky:["#7a1500", "#ff5a00", "#ffb300", "#fff6bd"],
+    ground:["#ffd24a", "#c96a00"], groundEdge:"#fffbe0",
+    stars:0, cloudCount:10, cloudColor:"255,240,180", cloudAlpha:0.22,
+    sun:null,
+    bands:["#ff8a00", "#ffc400", "#ff6a00", "#ffe680", "#ff9d1f"], accent:"#ffcc33"
+  },
+  {
+    id:"pluto", name:"Pluto", g:0.62, e:0.92, density:0.0, timeScale:1,
+    sky:["#000004", "#04060f", "#0a1020"],
+    ground:["#c3d3e0", "#5a6b7c"], groundEdge:"#ffffff",
+    stars:340, cloudCount:0, cloudColor:"255,255,255", cloudAlpha:0,
+    sun:{ x:0.9, y:0.08, r:0.014, c:"#ffffff", glow:"rgba(190,215,255,0.28)" },
+    bands:null, accent:"#a8d8ff", craters:true
+  },
+  {
+    id:"space", name:"Zero-G", g:0.0, e:1.0, density:0.0, timeScale:1,
+    sky:["#000005", "#03050e", "#070c1c"],
+    ground:["#232a3d", "#0d111c"], groundEdge:"#4a5a7a",
+    stars:420, cloudCount:4, cloudColor:"120,140,255", cloudAlpha:0.16,
+    sun:{ x:0.22, y:0.20, r:0.10, c:"#6f8bff", glow:"rgba(90,120,255,0.22)" },
+    bands:null, accent:"#9d8cff"
+  }
+];
+
+/* =========================================================================
+   STATE
+   ========================================================================= */
+const canvas = document.getElementById("stage");
+const ctx = canvas.getContext("2d", { alpha: false });
+
+let cssW = 0, cssH = 0, DPR = 1, scale = 50;
+const world = { w: 20, h: 11.3 };
+
+let env = ENVS[0];
+let gravity = env.g;
+let restitution = env.e;
+let dragPct = 100;
+let timeScale = 1;
+let ballRadius = 0.35;
+
+let paused = false;
+let showTrail = true, showArcs = true, showPrediction = true,
+    showVectors = true, showGrid = true, showApex = true;
+
+const ball = { x: 4, y: 7, vx: 6, vy: 2.5 };
+
+let trail = [];        // recent positions (fading comet tail)
+let arcs = [];         // completed trajectory arcs
+let arcPts = [];       // points of the arc currently in progress
+let impacts = [];      // bounce flash rings
+let flight = null;     // {x0,y0,vx0,vy0,t0} — analytics anchor for current flight
+let simTime = 0;
+let bounceCount = 0;
+let recordAcc = 0;
+let accum = 0;
+let nowSec = 0;
+
+let aiming = false, aimStart = null, aimEnd = null, wasPaused = false;
+
+const decor = { stars: [], clouds: [], bands: [], speckles: [] };
+
+/* cached gradients */
+let skyGrad = null, groundGrad = null;
+
+/* =========================================================================
+   COORDINATE MAPPING  (world metres  <->  screen pixels)
+   World: x right, y up, origin at bottom-left of the play area.
+   ========================================================================= */
+const sx = x => x * scale;
+const sy = y => cssH - (y + GROUND_DEPTH) * scale;
+const wx = px => px / scale;
+const wy = py => (cssH - py) / scale - GROUND_DEPTH;
+
+/* =========================================================================
+   PROCEDURAL DECOR GENERATION
+   ========================================================================= */
+function rebuildDecor() {
+  const skyBottom = sy(0);
+
+  // --- stars ---
+  decor.stars.length = 0;
+  const starCount = env.stars | 0;
+  for (let i = 0; i < starCount; i++) {
+    decor.stars.push({
+      x: Math.random(),
+      y: Math.random() * 0.94,
+      r: Math.random() < 0.86 ? 1 : 1.8,
+      a: 0.25 + Math.random() * 0.75,
+      tw: 0.6 + Math.random() * 2.4,
+      ph: Math.random() * TAU,
+      c: Math.random() < 0.16 ? "#bcd8ff" : (Math.random() < 0.12 ? "#ffd9c0" : "#ffffff")
+    });
+  }
+
+  // --- clouds ---
+  decor.clouds.length = 0;
+  const cc = env.cloudCount | 0;
+  for (let i = 0; i < cc; i++) {
+    decor.clouds.push({
+      x: Math.random(),
+      y: 0.08 + Math.random() * 0.62,
+      r: 0.06 + Math.random() * 0.16,
+      sp: 0.004 + Math.random() * 0.016,
+      a: env.cloudAlpha * (0.45 + Math.random() * 0.75)
+    });
+  }
+
+  // --- atmospheric bands (gas giants / the Sun) ---
+  decor.bands.length = 0;
+  if (env.bands) {
+    let y = 0;
+    while (y < 1) {
+      const h = 0.035 + Math.random() * 0.1;
+      decor.bands.push({
+        y, h,
+        c: env.bands[(Math.random() * env.bands.length) | 0],
+        a: 0.10 + Math.random() * 0.22
+      });
+      y += h * 0.85;
+    }
+  }
+
+  // --- ground speckles / craters ---
+  decor.speckles.length = 0;
+  const groundPx = cssH - skyBottom;
+  const n = Math.round((cssW * groundPx) / 5200);
+  for (let i = 0; i < n; i++) {
+    decor.speckles.push({
+      x: Math.random() * cssW,
+      y: skyBottom + Math.random() * groundPx,
+      r: 1 + Math.random() * (env.craters ? 9 : 2.6),
+      a: 0.05 + Math.random() * 0.16,
+      crater: env.craters && Math.random() < 0.3
+    });
+  }
+
+  // --- cached gradients ---
+  const g1 = ctx.createLinearGradient(0, 0, 0, skyBottom);
+  env.sky.forEach((c, i) => g1.addColorStop(i / (env.sky.length - 1), c));
+  skyGrad = g1;
+
+  const g2 = ctx.createLinearGradient(0, skyBottom, 0, cssH);
+  g2.addColorStop(0, env.ground[0]);
+  g2.addColorStop(1, env.ground[1]);
+  groundGrad = g2;
+}
+
+/* =========================================================================
+   RESIZE
+   ========================================================================= */
+function resize() {
+  const wrap = canvas.parentElement;
+  const rect = wrap.getBoundingClientRect();
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  cssW = Math.max(80, rect.width);
+  cssH = Math.max(80, rect.height);
+
+  canvas.width  = Math.round(cssW * DPR);
+  canvas.height = Math.round(cssH * DPR);
+  canvas.style.width  = cssW + "px";
+  canvas.style.height = cssH + "px";
+
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+  scale    = cssH / VIEW_H;
+  world.w  = cssW / scale;
+  world.h  = VIEW_H - GROUND_DEPTH;
+
+  // keep the ball inside the new bounds
+  ballRadius = clamp(ballRadius, 0.1, Math.min(1.2, world.h * 0.3));
+  ball.x = clamp(ball.x, ballRadius, Math.max(ballRadius, world.w - ballRadius));
+  ball.y = clamp(ball.y, ballRadius, Math.max(ballRadius, world.h - ballRadius));
+
+  rebuildDecor();
+}
+
+/* =========================================================================
+   PHYSICS
+   ========================================================================= */
+function dragK() {
+  return (dragPct / 100) * env.density * 0.02;
+}
+
+function recordPoint(force) {
+  const speed = Math.hypot(ball.vx, ball.vy);
+  if (!force && speed < 0.06 && ball.y <= ballRadius + 0.002) return;
+
+  const last = trail[trail.length - 1];
+  if (!last || Math.hypot(ball.x - last.x, ball.y - last.y) > 0.012 || force) {
+    trail.push({ x: ball.x, y: ball.y });
+    if (trail.length > 130) trail.shift();
+  }
+  const la = arcPts[arcPts.length - 1];
+  if (!la || Math.hypot(ball.x - la.x, ball.y - la.y) > 0.018 || force) {
+    if (arcPts.length < 900) arcPts.push({ x: ball.x, y: ball.y });
+  }
+}
+
+function beginFlight() {
+  flight = {
+    x0: ball.x, y0: ball.y,
+    vx0: ball.vx, vy0: ball.vy,
+    t0: simTime
+  };
+}
+
+function onBounce(x, y) {
+  bounceCount++;
+  impacts.push({ x, y, t0: nowSec });
+  if (impacts.length > 18) impacts.shift();
+
+  if (arcPts.length > 2) {
+    arcs.push(arcPts);
+    if (arcs.length > 7) arcs.shift();
+  }
+  arcPts = [{ x: ball.x, y: ball.y }];
+  beginFlight();
+}
+
+function substep(h) {
+  simTime += h;
+
+  // --- gravity (world y is up, so gravity subtracts) ---
+  ball.vy -= gravity * h;
+
+  // --- quadratic aerodynamic drag:  a = -k·|v|·v ---
+  const k = dragK();
+  if (k > 0) {
+    const sp = Math.hypot(ball.vx, ball.vy);
+    if (sp > 1e-6) {
+      const a = k * sp * h;
+      ball.vx -= a * ball.vx;
+      ball.vy -= a * ball.vy;
+    }
+  }
+
+  // --- integrate ---
+  ball.x += ball.vx * h;
+  ball.y += ball.vy * h;
+
+  const r = ballRadius;
+  const e = restitution;
+
+  // --- floor ---
+  if (ball.y < r) {
+    ball.y = r;
+    if (ball.vy < 0) {
+      if (-ball.vy > BOUNCE_MIN) {
+        ball.vy = -ball.vy * e;
+        ball.vx *= 0.985;
+        onBounce(ball.x, r);
+      } else {
+        ball.vy = 0;
+      }
+    }
+    // rolling friction while in contact
+    ball.vx *= (1 - 0.55 * h);
+    if (Math.abs(ball.vx) < 0.015) ball.vx = 0;
+  }
+
+  // --- ceiling ---
+  if (ball.y > world.h - r) {
+    ball.y = world.h - r;
+    if (ball.vy > 0) {
+      ball.vy = -ball.vy * e;
+      onBounce(ball.x, world.h - r);
+    }
+  }
+
+  // --- side walls ---
+  if (ball.x < r) {
+    ball.x = r;
+    if (ball.vx < 0) { ball.vx = -ball.vx * e; onBounce(r, ball.y); }
+  }
+  if (ball.x > world.w - r) {
+    ball.x = world.w - r;
+    if (ball.vx > 0) { ball.vx = -ball.vx * e; onBounce(world.w - r, ball.y); }
+  }
+
+  // --- sampling for the trail / arcs ---
+  recordAcc += h;
+  if (recordAcc >= 0.012) {
+    recordAcc = 0;
+    recordPoint(false);
+  }
+}
+
+/* =========================================================================
+   TRAJECTORY PREDICTION
+   Forward-integrates an identical virtual ball until first impact.
+   ========================================================================= */
+function predictPath(x, y, vx, vy, maxT) {
+  const pts = [];
+  const h = 1 / 240;
+  const r = ballRadius;
+  const e = restitution;
+  const k = dragK();
+  let t = 0;
+
+  let px = x, py = y, pvx = vx, pvy = vy;
+
+  while (t < maxT && pts.length < 3000) {
+    pvy -= gravity * h;
+    if (k > 0) {
+      const sp = Math.hypot(pvx, pvy);
+      if (sp > 1e-6) {
+        const a = k * sp * h;
+        pvx -= a * pvx;
+        pvy -= a * pvy;
+      }
+    }
+    px += pvx * h;
+    py += pvy * h;
+
+    let hit = false;
+    if (py < r) { py = r; hit = true; }
+    if (py > world.h - r) { py = world.h - r; hit = true; }
+    if (px < r) { px = r; hit = true; }
+    if (px > world.w - r) { px = world.w - r; hit = true; }
+
+    pts.push(px, py);
+    if (hit) break;
+    t += h;
+  }
+  return pts;
+}
+
+/* =========================================================================
+   RENDERING
+   ========================================================================= */
+function drawBackground(t) {
+  const fy = sy(0);
+
+  // --- sky ---
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, cssW, fy + 2);
+
+  // --- atmospheric bands ---
+  if (decor.bands.length) {
+    for (const b of decor.bands) {
+      const y0 = b.y * fy;
+      const hh = Math.max(2, b.h * fy);
+      const g = ctx.createLinearGradient(0, y0, 0, y0 + hh);
+      g.addColorStop(0, hexA(b.c, 0));
+      g.addColorStop(0.5, hexA(b.c, b.a));
+      g.addColorStop(1, hexA(b.c, 0));
+      ctx.fillStyle = g;
+      ctx.fillRect(0, y0, cssW, hh);
+    }
+  }
+
+  // --- stars ---
+  if (decor.stars.length) {
+    for (const s of decor.stars) {
+      const tw = 0.5 + 0.5 * Math.sin(t * s.tw + s.ph);
+      ctx.globalAlpha = s.a * (0.35 + 0.65 * tw);
+      ctx.fillStyle = s.c;
+      ctx.fillRect(s.x * cssW, s.y * fy, s.r, s.r);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // --- sun / celestial glow ---
+  if (env.sun) {
+    const cx = env.sun.x * cssW;
+    const cy = env.sun.y * fy;
+    const rr = Math.max(30, env.sun.r * cssW);
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr * 7);
+    g.addColorStop(0, env.sun.glow);
+    g.addColorStop(0.25, hexA("#ffffff", 0.16));
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, cssW, fy + 2);
+
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr);
+    core.addColorStop(0, "#ffffff");
+    core.addColorStop(0.55, env.sun.c);
+    core.addColorStop(1, hexA(env.sun.c, 0));
+    ctx.fillStyle = core;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rr, 0, TAU);
+    ctx.fill();
+  }
+
+  // --- clouds / nebulae ---
+  for (const c of decor.clouds) {
+    let cx = ((c.x + t * c.sp) % 1.45) - 0.22;
+    const cy = c.y * fy;
+    const rad = Math.max(20, c.r * cssW);
+    const g = ctx.createRadialGradient(cx * cssW, cy, 0, cx * cssW, cy, rad);
+    g.addColorStop(0, `rgba(${env.cloudColor},${c.a})`);
+    g.addColorStop(1, `rgba(${env.cloudColor},0)`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx * cssW, cy, rad, 0, TAU);
+    ctx.fill();
+  }
+
+  // --- ground ---
+  ctx.fillStyle = groundGrad;
+  ctx.fillRect(0, fy, cssW, cssH - fy);
+
+  // speckles / craters
+  for (const s of decor.speckles) {
+    if (s.crater) {
+      ctx.globalAlpha = s.a * 1.5;
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.ellipse(s.x, s.y, s.r, s.r * 0.42, 0, 0, TAU);
+      ctx.stroke();
+      ctx.globalAlpha = s.a;
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.ellipse(s.x, s.y - 1, s.r * 0.85, s.r * 0.3, 0, 0, TAU);
+      ctx.fill();
+    } else {
+      ctx.globalAlpha = s.a;
+      ctx.fillStyle = "#000000";
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, TAU);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // --- ground edge highlight ---
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = env.groundEdge;
+  ctx.fillRect(0, fy - 1.5, cssW, 1.5);
+  ctx.globalAlpha = 0.22;
+  const eg = ctx.createLinearGradient(0, fy, 0, fy + 26);
+  eg.addColorStop(0, env.groundEdge);
+  eg.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = eg;
+  ctx.fillRect(0, fy, cssW, 26);
+  ctx.globalAlpha = 1;
+}
+
+function drawGrid() {
+  const fy = sy(0);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, cssW, fy);
+  ctx.clip();
+
+  ctx.lineWidth = 1;
+  ctx.font = "10px ui-monospace, Menlo, Consolas, monospace";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "bottom";
+
+  const maxY = Math.ceil(world.h);
+  for (let m = 1; m <= maxY; m++) {
+    const Y = sy(m);
+    const major = m % 5 === 0;
+    ctx.strokeStyle = `rgba(255,255,255,${major ? 0.11 : 0.045})`;
+    ctx.beginPath();
+    ctx.moveTo(0, Y);
+    ctx.lineTo(cssW, Y);
+    ctx.stroke();
+    ctx.fillStyle = `rgba(190,215,240,${major ? 0.4 : 0.22})`;
+    ctx.fillText(m + " m", 6, Y - 3);
+  }
+
+  const maxX = Math.ceil(world.w);
+  for (let m = 1; m <= maxX; m++) {
+    const X = sx(m);
+    const major = m % 5 === 0;
+    ctx.strokeStyle = `rgba(255,255,255,${major ? 0.11 : 0.045})`;
+    ctx.beginPath();
+    ctx.moveTo(X, 0);
+    ctx.lineTo(X, fy);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawArcs() {
+  if (!showArcs || !arcs.length) return;
+  const fy = sy(0);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, cssW, fy);
+  ctx.clip();
+  ctx.setLineDash([5, 7]);
+  ctx.lineWidth = 1.3;
+  ctx.lineJoin = "round";
+
+  for (let i = 0; i < arcs.length; i++) {
+    const a = arcs[i];
+    if (a.length < 2) continue;
+    const recency = (i + 1) / arcs.length;
+    ctx.strokeStyle = hexA(env.accent, 0.08 + 0.30 * recency);
+    ctx.beginPath();
+    for (let j = 0; j < a.length; j++) {
+      const X = sx(a[j].x), Y = sy(a[j].y);
+      if (j === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+    }
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // apex marker on the most recent completed arc
+  if (showApex) {
+    const last = arcs[arcs.length - 1];
+    let best = last[0];
+    for (const p of last) if (p.y > best.y) best = p;
+    if (best.y > 0.5) {
+      const X = sx(best.x), Y = sy(best.y);
+      ctx.setLineDash([3, 5]);
+      ctx.strokeStyle = "rgba(255,205,120,0.55)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(X - 34, Y);
+      ctx.lineTo(X + 34, Y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = "rgba(255,205,120,0.95)";
+      ctx.beginPath();
+      ctx.arc(X, Y, 3, 0, TAU);
+      ctx.fill();
+
+      const label = `apex ${best.y.toFixed(2)} m`;
+      ctx.font = "10px ui-monospace, Menlo, Consolas, monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = "rgba(8,12,20,0.7)";
+      ctx.fillRect(X - tw / 2 - 5, Y - 18, tw + 10, 14);
+      ctx.fillStyle = "rgba(255,215,150,0.95)";
+      ctx.fillText(label, X, Y - 6);
+    }
+  }
+  ctx.restore();
+}
+
+function drawPrediction() {
+  if (!showPrediction) return;
+  if (aiming && (!aimStart || !aimEnd)) return;
+
+  let vx, vy;
+  if (aiming) {
+    const v = aimVelocity();
+    vx = v.vx; vy = v.vy;
+  } else {
+    vx = ball.vx; vy = ball.vy;
+  }
+  const speed = Math.hypot(vx, vy);
+  if (speed < 0.25) return;
+
+  const pts = predictPath(ball.x, ball.y, vx, vy, 8);
+  if (pts.length < 4) return;
+
+  const fy = sy(0);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, cssW, fy);
+  ctx.clip();
+
+  ctx.setLineDash([4, 8]);
+  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = hexA(env.accent, 0.75);
+  ctx.shadowColor = hexA(env.accent, 0.7);
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.moveTo(sx(pts[0]), sy(pts[1]));
+  for (let i = 2; i < pts.length; i += 2) {
+    ctx.lineTo(sx(pts[i]), sy(pts[i + 1]));
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // landing marker
+  const lx = pts[pts.length - 2], ly = pts[pts.length - 1];
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = hexA(env.accent, 0.9);
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.arc(sx(lx), sy(ly), 5, 0, TAU);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(sx(lx) - 9, sy(ly));
+  ctx.lineTo(sx(lx) + 9, sy(ly));
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawTrail() {
+  if (!showTrail || trail.length < 2) return;
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const n = trail.length;
+  for (let i = 1; i < n; i++) {
+    const f = i / n;
+    ctx.strokeStyle = hexA(env.accent, 0.03 + 0.80 * f * f);
+    ctx.lineWidth = 0.8 + 2.6 * f;
+    ctx.beginPath();
+    ctx.moveTo(sx(trail[i - 1].x), sy(trail[i - 1].y));
+    ctx.lineTo(sx(trail[i].x), sy(trail[i].y));
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawImpacts() {
+  for (const im of impacts) {
+    const age = nowSec - im.t0;
+    if (age < 0 || age > 0.75) continue;
+    const p = age / 0.75;
+    const R = (6 + p * 42) * (scale / 60);
+    ctx.strokeStyle = hexA(env.accent, (1 - p) * 0.6);
+    ctx.lineWidth = 2.2 * (1 - p) + 0.4;
+    ctx.beginPath();
+    ctx.arc(sx(im.x), sy(im.y), R, 0, TAU);
+    ctx.stroke();
+
+    ctx.strokeStyle = hexA("#ffffff", (1 - p) * 0.35);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(sx(im.x), sy(im.y), R * 0.55, 0, TAU);
+    ctx.stroke();
+  }
+}
+
+function drawBall() {
+  const X = sx(ball.x), Y = sy(ball.y), R = ballRadius * scale;
+
+  // outer glow
+  const gl = ctx.createRadialGradient(X, Y, R * 0.4, X, Y, R * 3.4);
+  gl.addColorStop(0, hexA(env.accent, 0.40));
+  gl.addColorStop(0.5, hexA(env.accent, 0.10));
+  gl.addColorStop(1, hexA(env.accent, 0));
+  ctx.fillStyle = gl;
+  ctx.beginPath();
+  ctx.arc(X, Y, R * 3.4, 0, TAU);
+  ctx.fill();
+
+  // body
+  const bg = ctx.createRadialGradient(
+    X - R * 0.36, Y - R * 0.42, R * 0.08,
+    X, Y, R * 1.05
+  );
+  bg.addColorStop(0.00, "#ffffff");
+  bg.addColorStop(0.28, "#c8f2ff");
+  bg.addColorStop(0.62, "#4fc3f7");
+  bg.addColorStop(1.00, "#0a5c8a");
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.arc(X, Y, R, 0, TAU);
+  ctx.fill();
+
+  // rim light
+  ctx.strokeStyle = "rgba(255,255,255,0.75)";
+  ctx.lineWidth = Math.max(1, R * 0.06);
+  ctx.beginPath();
+  ctx.arc(X, Y, R - ctx.lineWidth * 0.5, 0, TAU);
+  ctx.stroke();
+
+  // specular highlight
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  ctx.beginPath();
+  ctx.ellipse(X - R * 0.34, Y - R * 0.38, R * 0.20, R * 0.14, -0.7, 0, TAU);
+  ctx.fill();
+}
+
+function arrow(x1, y1, x2, y2, color, width) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.hypot(dx, dy);
+  if (len < 3) return;
+  const ux = dx / len, uy = dy / len;
+  const head = Math.min(11, len * 0.36);
+
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineCap = "round";
+
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2 - ux * head * 0.85, y2 - uy * head * 0.85);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - ux * head - uy * head * 0.42, y2 - uy * head + ux * head * 0.42);
+  ctx.lineTo(x2 - ux * head + uy * head * 0.42, y2 - uy * head - ux * head * 0.42);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawVectors() {
+  const X = sx(ball.x), Y = sy(ball.y);
+
+  // velocity vector
+  const vScale = 0.16;
+  let vx = ball.vx * vScale * scale;
+  let vy = -ball.vy * vScale * scale;   // screen y flips
+  const vlen = Math.hypot(vx, vy);
+  const vMax = Math.min(cssW, cssH) * 0.34;
+  if (vlen > vMax) { vx *= vMax / vlen; vy *= vMax / vlen; }
+  if (Math.hypot(vx, vy) > 4) {
+    arrow(X, Y, X + vx, Y + vy, "rgba(126,240,160,0.95)", 2.2);
+    // label
+    ctx.font = "10px ui-monospace, Menlo, Consolas, monospace";
+    ctx.fillStyle = "rgba(126,240,160,0.9)";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText("v", X + vx + 7, Y + vy);
+  }
+
+  // gravity vector
+  const gLen = clamp(gravity * 0.035, 0.18, 1.6) * scale;
+  if (gLen > 6) {
+    arrow(X, Y, X, Y + gLen, "rgba(255,150,110,0.9)", 2.2);
+    ctx.font = "10px ui-monospace, Menlo, Consolas, monospace";
+    ctx.fillStyle = "rgba(255,150,110,0.9)";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText("g", X, Y + gLen + 4);
+  }
+}
+
+function aimVelocity() {
+  if (!aimStart || !aimEnd) return { vx: 0, vy: 0 };
+  let vx = (aimStart.x - aimEnd.x) * AIM_POWER;
+  let vy = (aimStart.y - aimEnd.y) * AIM_POWER;
+  const sp = Math.hypot(vx, vy);
+  if (sp > MAX_LAUNCH) { vx *= MAX_LAUNCH / sp; vy *= MAX_LAUNCH / sp; }
+  return { vx, vy };
+}
+
+function drawAim() {
+  if (!aimStart || !aimEnd) return;
+  const X = sx(ball.x), Y = sy(ball.y);
+  const PX = sx(aimEnd.x), PY = sy(aimEnd.y);
+  const SX = sx(aimStart.x), SY = sy(aimStart.y);
+
+  const v = aimVelocity();
+  const power = clamp(Math.hypot(v.vx, v.vy) / MAX_LAUNCH, 0, 1);
+
+  // pull line
+  ctx.setLineDash([4, 5]);
+  ctx.strokeStyle = `rgba(255,255,255,${0.30 + 0.35 * power})`;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(SX, SY);
+  ctx.lineTo(PX, PY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // launch direction from ball
+  ctx.setLineDash([3, 6]);
+  ctx.strokeStyle = `rgba(126,240,160,${0.35 + 0.5 * power})`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(X, Y);
+  ctx.lineTo(X + v.vx * 0.22 * scale, Y - v.vy * 0.22 * scale);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // handle
+  ctx.fillStyle = `rgba(255,255,255,${0.6 + 0.4 * power})`;
+  ctx.beginPath();
+  ctx.arc(PX, PY, 6, 0, TAU);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,0.5)";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // power readout
+  ctx.font = "11px ui-monospace, Menlo, Consolas, monospace";
+  ctx.fillStyle = "rgba(230,245,255,0.95)";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+  const txt = `${(Math.hypot(v.vx, v.vy)).toFixed(1)} m/s`;
+  const tw = ctx.measureText(txt).width;
+  ctx.fillStyle = "rgba(6,10,18,0.7)";
+  ctx.fillRect(PX - tw / 2 - 6, PY - 26, tw + 12, 16);
+  ctx.fillStyle = "rgba(180,255,210,0.95)";
+  ctx.fillText(txt, PX, PY - 12);
+}
+
+function render(t) {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+
+  drawBackground(t);
+  if (showGrid) drawGrid();
+  drawArcs();
+  drawPrediction();
+  drawTrail();
+  drawImpacts();
+  drawBall();
+  if (showVectors) drawVectors();
+  if (aiming) drawAim();
+}
+
+/* =========================================================================
+   MATH PANEL
+   ========================================================================= */
+const el = id => document.getElementById(id);
+const ui = {
+  pos: el("mPos"), vel: el("mVel"), speed: el("mSpeed"), angle: el("mAngle"),
+  time: el("mTime"), apexT: el("mApexT"), apexM: el("mApexM"), tApex: el("mTApex"),
+  range: el("mRange"), dev: el("mDev"), bounces: el("mBounces"), eq: el("mEq"),
+  barKE: el("barKE"), barPE: el("barPE"), numKE: el("numKE"), numPE: el("numPE"),
+  envBadge: el("envBadge"), gBadge: el("gBadge"), stateBadge: el("stateBadge")
+};
+
+function updateMath() {
+  const g = gravity;
+  const speed = Math.hypot(ball.vx, ball.vy);
+  const ke = 0.5 * BALL_MASS * speed * speed;
+  const pe = BALL_MASS * g * Math.max(0, ball.y);
+  const total = ke + pe;
+
+  ui.pos.textContent = `(${ball.x.toFixed(2)}, ${ball.y.toFixed(2)}) m`;
+  ui.vel.textContent = `(${ball.vx.toFixed(2)}, ${ball.vy.toFixed(2)}) m/s`;
+  ui.speed.textContent = `${speed.toFixed(2)} m/s`;
+  ui.angle.textContent = speed > 0.01
+    ? `${(Math.atan2(ball.vy, ball.vx) * 180 / Math.PI).toFixed(1)}°`
+    : "—";
+  ui.bounces.textContent = bounceCount;
+
+  // ---- energy bars ----
+  const maxE = Math.max(total, 1e-6);
+  ui.barKE.style.width = (ke / maxE * 100).toFixed(1) + "%";
+  ui.barPE.style.width = (pe / maxE * 100).toFixed(1) + "%";
+  ui.numKE.textContent = ke.toFixed(1) + " J";
+  ui.numPE.textContent = pe.toFixed(1) + " J";
+
+  if (!flight || g <= 0.0001) {
+    ui.time.textContent = "—";
+    ui.apexT.textContent = "—";
+    ui.tApex.textContent = "—";
+    ui.range.textContent = "—";
+    ui.dev.textContent = "—";
+    ui.eq.textContent = g <= 0.0001
+      ? "g = 0 → straight-line flight (no parabola)"
+      : "awaiting launch…";
+  } else {
+    const t = Math.max(0, simTime - flight.t0);
+    const { x0, y0, vx0, vy0 } = flight;
+
+    ui.time.textContent = t.toFixed(3) + " s";
+
+    // analytic (no-drag) apex
+    let hApex, tApex;
+    if (vy0 > 0) {
+      tApex = vy0 / g;
+      hApex = y0 + (vy0 * vy0) / (2 * g);
+    } else {
+      tApex = 0;
+      hApex = y0;
+    }
+    ui.apexT.textContent = hApex.toFixed(3) + " m";
+    ui.tApex.textContent = tApex.toFixed(3) + " s";
+
+    // measured apex of the arc in progress
+    let measured = ball.y;
+    for (const p of arcPts) if (p.y > measured) measured = p.y;
+    ui.apexM.textContent = measured.toFixed(3) + " m";
+
+    // analytic range to the floor
+    const disc = vy0 * vy0 + 2 * g * y0;
+    if (disc >= 0) {
+      const tImp = (vy0 + Math.sqrt(disc)) / g;
+      const xImp = x0 + vx0 * tImp;
+      ui.range.textContent = `${xImp.toFixed(2)} m  (t = ${tImp.toFixed(2)} s)`;
+    } else {
+      ui.range.textContent = "—";
+    }
+
+    // deviation from the ideal drag-free parabola
+    const idealY = y0 + vy0 * t - 0.5 * g * t * t;
+    const dev = ball.y - idealY;
+    ui.dev.textContent = (dev >= 0 ? "+" : "") + dev.toFixed(4) + " m";
+
+    // ---- live equation of the parabola ----
+    if (Math.abs(vx0) > 0.02) {
+      const a = -g / (2 * vx0 * vx0);
+      const b = vy0 / vx0;
+      const xs = x0.toFixed(2), ys = y0.toFixed(2);
+      const bs = (b >= 0 ? "+ " : "− ") + Math.abs(b).toFixed(3);
+      const as = (a >= 0 ? "+ " : "− ") + Math.abs(a).toFixed(4);
+      ui.eq.textContent =
+        `y = ${ys} ${bs}(x − ${xs}) ${as}(x − ${xs})²`;
+    } else {
+      ui.eq.textContent =
+        `vertical flight:  y(t) = ${y0.toFixed(2)} + ${vy0.toFixed(2)}t − ${(0.5 * g).toFixed(2)}t²`;
+    }
+  }
+}
+
+/* =========================================================================
+   UI WIRING
+   ========================================================================= */
+const G_MIN = 0.05, G_MAX = 300;
+const sliderToG = s => G_MIN * Math.pow(G_MAX / G_MIN, s);
+const gToSlider = g => Math.log(clamp(g, G_MIN, G_MAX) / G_MIN) / Math.log(G_MAX / G_MIN);
+
+/* --- environment buttons --- */
+const envGrid = el("envGrid");
+ENVS.forEach((e, i) => {
+  const btn = document.createElement("button");
+  btn.className = "envBtn" + (i === 0 ? " active" : "");
+  btn.dataset.id = e.id;
+  const dot = document.createElement("span");
+  dot.className = "dot";
+  const mid = e.sky[Math.floor(e.sky.length / 2)];
+  dot.style.background = `radial-gradient(circle at 32% 28%, #ffffff 0%, ${e.accent} 45%, ${mid} 100%)`;
+  dot.style.color = e.accent;
+  const name = document.createElement("span");
+  name.textContent = e.name;
+  btn.appendChild(dot);
+  btn.appendChild(name);
+  btn.addEventListener("click", () => setEnvironment(e.id));
+  envGrid.appendChild(btn);
+});
+
+function setEnvironment(id) {
+  const e = ENVS.find(x => x.id === id);
+  if (!e) return;
+  env = e;
+  gravity = e.g;
+  restitution = e.e;
+  dragPct = 100;
+  timeScale = e.timeScale;
+
+  document.querySelectorAll(".envBtn").forEach(b =>
+    b.classList.toggle("active", b.dataset.id === id));
+
+  // sync sliders
+  el("rngGravity").value = gToSlider(gravity);
+  el("rngRest").value = restitution;
+  el("rngDrag").value = dragPct;
+  el("rngTime").value = timeScale;
+  updateSliderLabels();
+
+  // UI badges
+  ui.envBadge.textContent = e.name;
+  ui.gBadge.textContent = `g = ${gravity.toFixed(2)} m/s²`;
+
+  // clear history so the new background gets a clean canvas
+  trail = [];
+  arcs = [];
+  arcPts = [{ x: ball.x, y: ball.y }];
+  impacts = [];
+  bounceCount = 0;
+  beginFlight();
+
+  rebuildDecor();
+}
+
+/* --- sliders --- */
+function updateSliderLabels() {
+  el("valGravity").textContent = gravity.toFixed(2) + " m/s²";
+  el("valRest").textContent = restitution.toFixed(2);
+  el("valDrag").textContent = dragPct + " %";
+  el("valRadius").textContent = ballRadius.toFixed(2) + " m";
+  el("valTime").textContent = timeScale.toFixed(2) + " ×";
+}
+
+el("rngGravity").addEventListener("input", ev => {
+  gravity = sliderToG(parseFloat(ev.target.value));
+  ui.gBadge.textContent = `g = ${gravity.toFixed(2)} m/s²`;
+  updateSliderLabels();
+});
+
+el("rngRest").addEventListener("input", ev => {
+  restitution = parseFloat(ev.target.value);
+  updateSliderLabels();
+});
+
+el("rngDrag").addEventListener("input", ev => {
+  dragPct = parseFloat(ev.target.value);
+  updateSliderLabels();
+});
+
+el("rngRadius").addEventListener("input", ev => {
+  ballRadius = parseFloat(ev.target.value);
+  ball.x = clamp(ball.x, ballRadius, Math.max(ballRadius, world.w - ballRadius));
+  ball.y = clamp(ball.y, ballRadius, Math.max(ballRadius, world.h - ballRadius));
+  updateSliderLabels();
+});
+
+el("rngTime").addEventListener("input", ev => {
+  timeScale = parseFloat(ev.target.value);
+  updateSliderLabels();
+});
+
+/* --- toggles --- */
+el("chkTrail").addEventListener("change", e => showTrail = e.target.checked);
+el("chkArcs").addEventListener("change", e => showArcs = e.target.checked);
+el("chkPred").addEventListener("change", e => showPrediction = e.target.checked);
+el("chkVectors").addEventListener("change", e => showVectors = e.target.checked);
+el("chkGrid").addEventListener("change", e => showGrid = e.target.checked);
+el("chkApex").addEventListener("change", e => showApex = e.target.checked);
+
+/* --- actions --- */
+function setPaused(p) {
+  paused = p;
+  el("btnPause").textContent = paused ? "▶ Resume" : "⏸ Pause";
+  ui.stateBadge.textContent = paused ? "Paused" : "Running";
+}
+
+el("btnPause").addEventListener("click", () => setPaused(!paused));
+
+el("btnReset").addEventListener("click", () => {
+  ball.x = clamp(world.w * 0.30, ballRadius, world.w - ballRadius);
+  ball.y = world.h * 0.78;
+  ball.vx = 6;
+  ball.vy = 2.5;
+  clearHistory();
+  setPaused(false);
+});
+
+el("btnRandom").addEventListener("click", () => {
+  ball.x = ballRadius + Math.random() * Math.max(0.2, world.w - ballRadius * 2);
+  ball.y = world.h * (0.45 + Math.random() * 0.5);
+  const ang = (Math.random() * 0.8 + 0.15) * Math.PI * 0.5;
+  const sp = 5 + Math.random() * 12;
+  ball.vx = Math.cos(ang) * sp * (Math.random() < 0.5 ? -1 : 1);
+  ball.vy = Math.sin(ang) * sp;
+  clearHistory();
+  setPaused(false);
+});
+
+el("btnClear").addEventListener("click", clearHistory);
+
+function clearHistory() {
+  trail = [];
+  arcs = [];
+  arcPts = [{ x: ball.x, y: ball.y }];
+  impacts = [];
+  bounceCount = 0;
+  simTime = 0;
+  beginFlight();
+}
+
+/* =========================================================================
+   POINTER INTERACTION — slingshot / place
+   ========================================================================= */
+function pointerWorld(ev) {
+  const r = canvas.getBoundingClientRect();
+  return { x: wx(ev.clientX - r.left), y: wy(ev.clientY - r.top) };
+}
+
+canvas.addEventListener("pointerdown", ev => {
+  if (aiming) return;
+  aiming = true;
+  wasPaused = paused;
+  setPaused(true);
+  aimStart = pointerWorld(ev);
+  aimEnd = aimStart;
+  try { canvas.setPointerCapture(ev.pointerId); } catch (_) {}
+  ev.preventDefault();
+});
+
+canvas.addEventListener("pointermove", ev => {
+  if (!aiming) return;
+  aimEnd = pointerWorld(ev);
+  ev.preventDefault();
+});
+
+function endAim(ev) {
+  if (!aiming) return;
+  aiming = false;
+  const end = ev ? pointerWorld(ev) : aimEnd;
+  aimEnd = end;
+
+  const dist = Math.hypot(aimStart.x - aimEnd.x, aimStart.y - aimEnd.y);
+
+  if (dist < 0.28) {
+    // simple click → place the ball there, at rest
+    ball.x = clamp(aimStart.x, ballRadius, Math.max(ballRadius, world.w - ballRadius));
+    ball.y = clamp(aimStart.y, ballRadius, Math.max(ballRadius, world.h - ballRadius));
+    ball.vx = 0;
+    ball.vy = 0;
+    clearHistory();
+  } else {
+    const v = aimVelocity();
+    ball.vx = v.vx;
+    ball.vy = v.vy;
+    trail = [];
+    arcs = [];
+    arcPts = [{ x: ball.x, y: ball.y }];
+    impacts = [];
+    beginFlight();
+  }
+
+  aimStart = null;
+  aimEnd = null;
+  setPaused(wasPaused);
+}
+
+canvas.addEventListener("pointerup", endAim);
+canvas.addEventListener("pointercancel", endAim);
+
+/* --- keyboard shortcuts --- */
+window.addEventListener("keydown", ev => {
+  if (ev.target.tagName === "INPUT") return;
+  const k = ev.key.toLowerCase();
+  if (k === " ") { ev.preventDefault(); setPaused(!paused); }
+  else if (k === "r") { el("btnReset").click(); }
+  else if (k === "c") { clearHistory(); }
+  else if (k === "n") { el("btnRandom").click(); }
+});
+
+/* =========================================================================
+   MAIN LOOP
+   ========================================================================= */
+let lastT = performance.now();
+
+function frame(now) {
+  let dtReal = (now - lastT) / 1000;
+  lastT = now;
+  if (!isFinite(dtReal) || dtReal < 0) dtReal = 0;
+  dtReal = Math.min(dtReal, 0.05);
+  nowSec = now / 1000;
+
+  if (!paused && !aiming && timeScale > 0) {
+    accum += dtReal * timeScale;
+    let steps = 0;
+    while (accum >= FIXED_DT && steps < MAX_SUBSTEPS) {
+      substep(FIXED_DT);
+      accum -= FIXED_DT;
+      steps++;
+    }
+    if (steps >= MAX_SUBSTEPS) accum = 0;
+  } else {
+    accum = 0;
+  }
+
+  // age out impact rings
+  if (impacts.length) {
+    impacts = impacts.filter(im => (nowSec - im.t0) < 0.8);
+  }
+
+  render(nowSec);
+  updateMath();
+
+  requestAnimationFrame(frame);
+}
+
+/* =========================================================================
+   BOOT
+   ========================================================================= */
+function boot() {
+  resize();
+
+  ball.x = clamp(world.w * 0.30, ballRadius, world.w - ballRadius);
+  ball.y = world.h * 0.78;
+  ball.vx = 6;
+  ball.vy = 2.5;
+
+  setEnvironment("earth");
+  updateSliderLabels();
+  setPaused(false);
+  beginFlight();
+  arcPts = [{ x: ball.x, y: ball.y }];
+
+  // hide the hint after a while
+  const hint = el("hint");
+  setTimeout(() => { hint.style.opacity = "0"; }, 9000);
+
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => resize()).observe(canvas.parentElement);
+  }
+  window.addEventListener("resize", resize);
+
+  requestAnimationFrame(frame);
+}
+
+boot();
+
+})();
+</script>
+</body>
+</html>
